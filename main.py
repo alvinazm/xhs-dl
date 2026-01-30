@@ -29,7 +29,7 @@ async def api_server(
 
 async def mcp_server(
     transport="streamable-http",
-    host="0.0.0.0",
+    host="127.0.0.0",
     port=5556,
     log_level="INFO",
 ):
@@ -49,11 +49,15 @@ if __name__ == "__main__":
     ):
         # TODO: 重构优化
         if len(argv) == 1:
-            run(app())
-        elif argv[1].upper() == "API":
             run(api_server())
+            # 默认启动Web界面模式，访问 http://127.0.0.1:5556
+        elif argv[1].upper() == "API" or argv[1].upper() == "WEB":
+            run(api_server())
+            # WEB 模式启动后会自动打开浏览器并访问 http://127.0.0.1:5556
         elif argv[1].upper() == "MCP":
             run(mcp_server())
             # run(mcp_server("stdio"))
+        elif argv[1].upper() == "CLI":
+            cli()
         else:
             cli()

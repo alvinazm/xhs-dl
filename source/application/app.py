@@ -14,7 +14,9 @@ from re import compile
 from urllib.parse import urlparse
 from textwrap import dedent
 from fastapi import FastAPI
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
+from pathlib import Path
 from fastmcp import FastMCP
 from typing import Annotated
 from pydantic import Field
@@ -137,7 +139,7 @@ class XHS:
         language="zh_CN",
         # read_cookie: int | str = None,
         script_server: bool = False,
-        script_host="0.0.0.0",
+        script_host="127.0.0.0",
         script_port=5558,
         **kwargs,
     ):
@@ -678,7 +680,7 @@ class XHS:
 
     async def run_api_server(
         self,
-        host="0.0.0.0",
+        host="127.0.0.0",
         port=5556,
         log_level="info",
     ):
@@ -701,14 +703,19 @@ class XHS:
         self,
         server: FastAPI,
     ):
+        static_dir = Path(__file__).resolve().parent.parent.parent / "static"
+        web_dir = static_dir / "web"
+
+        server.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
+
         @server.get(
             "/",
-            summary=_("跳转至项目 GitHub 仓库"),
-            description=_("重定向至项目 GitHub 仓库主页"),
-            tags=["API"],
+            summary=_("网页界面"),
+            description=_("XHS-Downloader 网页界面"),
+            tags=["Web"],
         )
         async def index():
-            return RedirectResponse(url=REPOSITORY)
+            return FileResponse(str(web_dir / "index.html"))
 
         @server.post(
             "/xhs/detail",
@@ -752,7 +759,7 @@ class XHS:
     async def run_mcp_server(
         self,
         transport="streamable-http",
-        host="0.0.0.0",
+        host="127.0.0.0",
         port=5556,
         log_level="INFO",
     ):
@@ -935,7 +942,7 @@ class XHS:
 
     def init_script_server(
         self,
-        host="0.0.0.0",
+        host="127.0.0.0",
         port=5558,
     ):
         if self.manager.script_server:
@@ -943,7 +950,7 @@ class XHS:
 
     async def switch_script_server(
         self,
-        host="0.0.0.0",
+        host="127.0.0.0",
         port=5558,
         switch: bool = None,
     ):
@@ -959,7 +966,7 @@ class XHS:
 
     def run_script_server(
         self,
-        host="0.0.0.0",
+        host="127.0.0.0",
         port=5558,
     ):
         if not self.script:
