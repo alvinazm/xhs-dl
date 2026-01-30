@@ -169,6 +169,16 @@ class Setting(Screen):
                     id="script_server",
                     value=self.data["script_server"],
                 ),
+                Checkbox(
+                    _("浏览器缓存开关"),
+                    id="browser_cache",
+                    value=self.data.get("browser_cache", True),
+                ),
+                Checkbox(
+                    _("页面下载记录开关"),
+                    id="download_history",
+                    value=self.data.get("download_history", True),
+                ),
                 classes="horizontal-layout",
             ),
             Container(
@@ -245,6 +255,8 @@ class Setting(Screen):
                 "author_archive": self.query_one("#author_archive").value,
                 "write_mtime": self.query_one("#write_mtime").value,
                 "script_server": self.query_one("#script_server").value,
+                "browser_cache": self.query_one("#browser_cache").value,
+                "download_history": self.query_one("#download_history").value,
             }
         )
 

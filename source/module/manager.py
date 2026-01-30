@@ -71,6 +71,8 @@ class Manager:
         author_archive: bool,
         write_mtime: bool,
         script_server: bool,
+        browser_cache: bool,
+        download_history: bool,
         cleaner: "Cleaner",
         print_object,
     ):
@@ -127,6 +129,8 @@ class Manager:
         self.author_archive = self.check_bool(author_archive, False)
         self.write_mtime = self.check_bool(write_mtime, False)
         self.script_server = self.check_bool(script_server, False)
+        self.browser_cache = self.check_bool(browser_cache, True)
+        self.download_history = self.check_bool(download_history, True)
         self.create_folder()
 
     def __check_path(self, path: str) -> Path:
@@ -172,6 +176,10 @@ class Manager:
     @staticmethod
     def archive(root: Path, name: str, folder_mode: bool) -> Path:
         return root.joinpath(name) if folder_mode else root
+
+    @staticmethod
+    def archive_to_folder(folder: Path, name: str) -> Path:
+        return folder.joinpath(name)
 
     @classmethod
     def move(

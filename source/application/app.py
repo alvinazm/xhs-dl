@@ -10,6 +10,7 @@ from asyncio import (
 )
 from contextlib import suppress
 from datetime import datetime
+from pickle import FALSE
 from re import compile
 from urllib.parse import urlparse
 from textwrap import dedent
@@ -24,6 +25,7 @@ from types import SimpleNamespace
 from pyperclip import copy, paste
 from uvicorn import Config, Server
 from typing import Callable
+from aiofiles import open as aiofiles_open
 
 from ..expansion import (
     # BrowserCookie,
@@ -80,6 +82,8 @@ def data_cache(function):
             )
             data["下载地址"] = download
             data["动图地址"] = lives
+        else:
+            await function(self, data)
 
     return inner
 
@@ -141,6 +145,8 @@ class XHS:
         script_server: bool = False,
         script_host="127.0.0.0",
         script_port=5558,
+        browser_cache: bool = True,
+        download_history: bool = False,
         **kwargs,
     ):
         switch_language(language)
@@ -167,6 +173,8 @@ class XHS:
             author_archive,
             write_mtime,
             script_server,
+            browser_cache,
+            download_history,
             self.CLEANER,
             self.print,
         )
@@ -217,6 +225,13 @@ class XHS:
         count: SimpleNamespace,
     ):
         name = self.__naming_rules(container)
+        title = container.get("作品标题", "").strip()
+        if title:
+            safe_title = self.CLEANER.filter_name(title, default="")
+            if not safe_title:
+                safe_title = datetime.now().strftime("%Y-%m-%d_%H.%M.%S")
+        else:
+            safe_title = datetime.now().strftime("%Y-%m-%d_%H.%M.%S")
         if (u := container["下载地址"]) and download:
             if await self.skip_download(i := container["作品ID"]):
                 self.logging(_("作品 {0} 存在下载记录，跳过下载").format(i))
@@ -229,9 +244,10 @@ class XHS:
                     container["作者ID"]
                     + "_"
                     + self.CLEANER.filter_name(container["作者昵称"]),
-                    name,
+                    safe_title,
                     container["作品类型"],
                     container["时间戳"],
+                    safe_title,
                 )
                 if not result:
                     count.skip += 1
@@ -246,6 +262,8 @@ class XHS:
             self.logging(_("提取作品文件下载地址失败"), ERROR)
             count.fail += 1
         await self.save_data(container)
+        title_folder = self.manager.folder.joinpath(safe_title)
+        await self.save_to_markdown(container, title_folder)
 
     @data_cache
     async def save_data(
@@ -257,6 +275,57 @@ class XHS:
         data["动图地址"] = " ".join(i or "NaN" for i in data["动图地址"])
         data.pop("时间戳", None)
         await self.data_recorder.add(**data)
+
+    async def save_to_markdown(self, data: dict, folder: Path):
+        try:
+            folder.mkdir(parents=True, exist_ok=True)
+            md_path = folder.joinpath("result.md")
+            title = data.get("作品标题", "无标题")
+            note_type = data.get("作品类型", "未知")
+            publish_time = data.get("发布时间", "")
+            content = data.get("作品描述", "")
+            tags = data.get("作品标签", "")
+            likes = data.get("点赞数量", "0")
+            collects = data.get("收藏数量", "0")
+            comments = data.get("评论数量", "0")
+            shares = data.get("分享数量", "0")
+            author = data.get("作者昵称", "未知作者")
+            author_id = data.get("作者ID", "")
+            post_link = data.get("作品链接", "")
+            download_links = data.get("下载地址", "")
+
+            md_content = f"""# {title}
+
+## 基本信息
+- **类型**: {note_type}
+- **发布时间**: {publish_time}
+- **作者**: {author}
+- **作者ID**: {author_id}
+- **作品链接**: {post_link}
+
+## 数据统计
+- **点赞数**: {likes}
+- **收藏数**: {collects}
+- **评论数**: {comments}
+- **分享数**: {shares}
+
+## 标签
+{tags}
+
+## 作品内容
+{content}
+
+## 下载地址
+{download_links}
+
+---
+*采集时间: {data.get("采集时间", "")}*
+"""
+
+            async with aiofiles_open(md_path, "a", encoding="utf-8") as f:
+                await f.write(md_content + "\n")
+        except Exception as e:
+            self.logging(f"保存 Markdown 文件失败: {repr(e)}")
 
     async def __add_record(
         self,
@@ -974,7 +1043,7 @@ class XHS:
 
     async def _run_script_server(
         self,
-        host="0.0.0.0",
+        host="127.0.0.0",
         port=5558,
     ):
         async with ScriptServer(self, host, port):

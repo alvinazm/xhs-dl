@@ -77,8 +77,9 @@ class Download:
         filename: str,
         type_: str,
         mtime: int,
+        title: str = None,
     ) -> tuple[Path, list[Any]]:
-        path = self.__generate_path(nickname, filename)
+        path = self.__generate_path(nickname, filename, title)
         if type_ == _("视频"):
             tasks = self.__ready_download_video(
                 urls,
@@ -111,15 +112,22 @@ class Download:
         tasks = await gather(*tasks)
         return path, tasks  # 未解之谜
 
-    def __generate_path(self, nickname: str, filename: str):
+    def __generate_path(self, nickname: str, filename: str, title: str = None):
+        from datetime import datetime
+
         if self.author_archive:
             folder = self.folder.joinpath(nickname)
             folder.mkdir(exist_ok=True)
+        elif title:
+            safe_title = self.manager.cleaner.filter_name(title, default="")
+            if not safe_title:
+                safe_title = datetime.now().strftime("%Y-%m-%d_%H.%M.%S")
+            folder = self.folder.joinpath(safe_title)
+            folder.mkdir(exist_ok=True)
         else:
             folder = self.folder
-        path = self.manager.archive(folder, filename, self.folder_mode)
-        path.mkdir(exist_ok=True)
-        return path
+        folder.mkdir(exist_ok=True)
+        return folder
 
     def __ready_download_video(
         self,
