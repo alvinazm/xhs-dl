@@ -889,14 +889,14 @@ class XHS:
             tags=["API"],
         )
         async def download_local_file(path: str):
-            safe_path = Path(path).resolve()
             volume_dir = static_dir.parent.joinpath("Volume").resolve()
+            safe_path = volume_dir.joinpath(path.lstrip("/")).resolve()
             if not str(safe_path).startswith(str(volume_dir)):
                 from fastapi.responses import JSONResponse
                 return JSONResponse(status_code=403, content={"detail": "Forbidden"})
             if not safe_path.exists() or not safe_path.is_file():
                 from fastapi.responses import JSONResponse
-                return JSONResponse(status_code=404, content={"detail": "File not found"})
+                return JSONResponse(status_code=404, content={"detail": f"File not found: {safe_path}"})
             return FileResponse(
                 path=str(safe_path),
                 filename=safe_path.name,
