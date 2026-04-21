@@ -113,15 +113,14 @@ class Download:
         return path, tasks  # 未解之谜
 
     def __generate_path(self, nickname: str, filename: str, title: str = None):
+        from uuid import uuid4
         from datetime import datetime
 
         if self.author_archive:
             folder = self.folder.joinpath(nickname)
             folder.mkdir(exist_ok=True)
         elif title:
-            safe_title = self.manager.cleaner.filter_name(title, default="")
-            if not safe_title:
-                safe_title = datetime.now().strftime("%Y-%m-%d_%H.%M.%S")
+            safe_title = f"xhs_{uuid4().hex[:12]}"
             folder = self.folder.joinpath(safe_title)
             folder.mkdir(exist_ok=True)
         else:
@@ -135,15 +134,17 @@ class Download:
         path: Path,
         name: str,
     ) -> list:
+        from uuid import uuid4
         if not self.video_download:
             logging(self.print, _("视频作品下载功能已关闭，跳过下载"))
             return []
+        file_name = f"xhs_{uuid4().hex[:12]}"
         if self.__check_exists_path(
             path,
-            f"{name}.{self.video_format}",
+            f"{file_name}.{self.video_format}",
         ):
             return []
-        return [(urls[0], name, self.video_format)]
+        return [(urls[0], file_name, self.video_format)]
 
     def __ready_download_image(
         self,
@@ -153,6 +154,7 @@ class Download:
         path: Path,
         name: str,
     ) -> list:
+        from uuid import uuid4
         tasks = []
         if not self.image_download:
             logging(self.print, _("图文作品下载功能已关闭，跳过下载"))
@@ -160,25 +162,25 @@ class Download:
         for i, j in enumerate(zip(urls, lives), start=1):
             if index and i not in index:
                 continue
-            file = f"{name}_{i}"
+            file_name = f"xhs_{uuid4().hex[:12]}_{i}"
             if not any(
                 self.__check_exists_path(
                     path,
-                    f"{file}.{s}",
+                    f"{file_name}.{s}",
                 )
                 for s in self.image_format_list
             ):
-                tasks.append([j[0], file, self.image_format])
+                tasks.append([j[0], file_name, self.image_format])
             if (
                 not self.live_download
                 or not j[1]
                 or self.__check_exists_path(
                     path,
-                    f"{file}.{self.live_format}",
+                    f"{file_name}.{self.live_format}",
                 )
             ):
                 continue
-            tasks.append([j[1], file, self.live_format])
+            tasks.append([j[1], file_name, self.live_format])
         return tasks
 
     def __check_exists_glob(
