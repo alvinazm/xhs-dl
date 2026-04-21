@@ -15,7 +15,7 @@ from re import compile
 from urllib.parse import urlparse
 from textwrap import dedent
 from fastapi import FastAPI
-from fastapi.responses import RedirectResponse, FileResponse
+from fastapi.responses import RedirectResponse, FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 from fastmcp import FastMCP
@@ -250,22 +250,16 @@ class XHS:
                     safe_title,
                 )
                 downloaded_files = []
-                if folder_path and result:
-                    self.logging(f"[DEBUG] folder_path={folder_path}, result={result}")
+                if folder_path:
                     try:
                         for f in sorted(folder_path.iterdir()):
                             if f.is_file() and (
                                 f.suffix.lower() in {'.mp4', '.mov', '.jpg', '.jpeg', '.png', '.webp', '.avif', '.heic', '.gif', '.m4a', '.mp3'}
                             ):
-                                rel = str(f.relative_to(ROOT))
-                                self.logging(f"[DEBUG] found file: {rel}")
-                                downloaded_files.append(rel)
-                    except Exception as e:
-                        self.logging(f"[DEBUG] file scan error: {e}")
-                else:
-                    self.logging(f"[DEBUG] folder_path={folder_path}, result={result}")
+                                downloaded_files.append(str(f.relative_to(ROOT)))
+                    except Exception:
+                        pass
                 container["本地文件路径"] = downloaded_files
-                self.logging(f"[DEBUG] container['本地文件路径'] = {downloaded_files}")
                 if not result:
                     count.skip += 1
                 elif all(result):
@@ -674,13 +668,8 @@ class XHS:
         return data["发布时间"].replace(":", ".")
 
     def __get_name_title(self, data: dict) -> str:
-        return (
-            beautify_string(
-                self.manager.filter_name(data["作品标题"]),
-                64,
-            )
-            or data["作品ID"]
-        )
+        from uuid import uuid4
+        return f"xhs_{uuid4().hex[:12]}"
 
     async def monitor(
         self,
@@ -877,7 +866,6 @@ class XHS:
                     extract.proxy,
                 ):
                     msg = _("获取小红书作品数据成功")
-                    self.logging(f"[DEBUG] 本地文件: {data.get('本地文件路径', [])}")
                 else:
                     msg = _("获取小红书作品数据失败")
             return ExtractData(message=msg, params=extract, data=data)
@@ -889,19 +877,27 @@ class XHS:
             tags=["API"],
         )
         async def download_local_file(path: str):
+            from fastapi.responses import StreamingResponse
+            from urllib.parse import unquote, quote
+            path = unquote(unquote(path))
             volume_dir = static_dir.parent.joinpath("Volume").resolve()
             safe_path = volume_dir.joinpath(path.lstrip("/")).resolve()
             if not str(safe_path).startswith(str(volume_dir)):
-                from fastapi.responses import JSONResponse
                 return JSONResponse(status_code=403, content={"detail": "Forbidden"})
             if not safe_path.exists() or not safe_path.is_file():
-                from fastapi.responses import JSONResponse
                 return JSONResponse(status_code=404, content={"detail": f"File not found: {safe_path}"})
-            return FileResponse(
-                path=str(safe_path),
-                filename=safe_path.name,
+            encoded_name = quote(safe_path.name, safe="")
+            async def file_iterator():
+                async with aiofiles_open(safe_path, "rb") as f:
+                    while chunk := await f.read(1024 * 1024):
+                        yield chunk
+            return StreamingResponse(
+                file_iterator(),
                 media_type="application/octet-stream",
-                headers={"Content-Disposition": f"attachment; filename*=UTF-8''{safe_path.name}"},
+                headers={
+                    "Content-Disposition": f"attachment; filename=\"{encoded_name}\"; filename*=UTF-8''{encoded_name}",
+                    "Content-Length": str(safe_path.stat().st_size),
+                },
             )
 
     async def run_mcp_server(
