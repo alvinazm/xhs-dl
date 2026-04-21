@@ -337,11 +337,12 @@ main {
     color: white;
     padding: 5px 12px;
     border-radius: 5px;
-    text-decoration: none;
+    border: none;
     font-size: 12px;
     font-weight: 500;
     flex-shrink: 0;
     transition: background 0.2s;
+    cursor: pointer;
 }
 
 .file-save-btn:hover {

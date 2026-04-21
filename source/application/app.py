@@ -901,6 +901,7 @@ class XHS:
                 path=str(safe_path),
                 filename=safe_path.name,
                 media_type="application/octet-stream",
+                headers={"Content-Disposition": f"attachment; filename*=UTF-8''{safe_path.name}"},
             )
 
     async def run_mcp_server(

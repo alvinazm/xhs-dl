@@ -169,7 +169,7 @@ class XHSDownloader {
 
         let localFilesHtml = '';
         if (localFiles.length > 0) {
-            const fileItems = localFiles.map((filePath, i) => {
+            const fileItems = localFiles.map((filePath) => {
                 const fileName = filePath.split('/').pop();
                 const fileExt = fileName.split('.').pop().toLowerCase();
                 const isVideo = ['mp4', 'mov', 'avi', 'mkv'].includes(fileExt);
@@ -177,21 +177,14 @@ class XHSDownloader {
                 return `<div class="file-item">
                     <span class="file-icon">${icon}</span>
                     <span class="file-name" title="${this.escapeHtml(fileName)}">${this.escapeHtml(fileName)}</span>
-                    <a href="/xhs/files?path=${encodeURIComponent(filePath)}" class="file-save-btn" download="${this.escapeHtml(fileName)}">💾 保存</a>
+                    <button class="file-save-btn" onclick="XHSDownloaderInstance.downloadFile('${encodeURIComponent(filePath)}', '${this.escapeHtml(fileName)}')">💾 保存</button>
                 </div>`;
             }).join('');
-            
-            const allFilesSaved = localFiles.length > 1
-                ? `<div class="file-actions">
-                    <button class="save-all-btn" onclick="window.location.href='/xhs/files?path=${encodeURIComponent(localFiles[0])}' + ''">⚠️ 批量保存请逐个点击上方按钮</button>
-                   </div>`
-                : '';
             
             localFilesHtml = `
                 <div class="local-files-section">
                     <div class="section-label">📁 已保存到本地</div>
                     <div class="file-list">${fileItems}</div>
-                    ${allFilesSaved}
                 </div>
             `;
         }
@@ -226,6 +219,29 @@ class XHSDownloader {
         `;
 
         document.getElementById('resultList').appendChild(resultItem);
+    }
+
+    async downloadFile(filePath, fileName) {
+        try {
+            const response = await fetch(`/xhs/files?path=${encodeURIComponent(filePath)}`);
+            if (!response.ok) {
+                this.showToast('下载失败', 'error');
+                return;
+            }
+            const blob = await response.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            this.showToast('保存成功', 'success');
+        } catch (err) {
+            console.error('Download error:', err);
+            this.showToast('保存失败', 'error');
+        }
     }
 
     truncateUrl(url, maxLength) {
@@ -308,6 +324,8 @@ class XHSDownloader {
     }
 }
 
+let XHSDownloaderInstance;
+
 document.addEventListener('DOMContentLoaded', () => {
-    new XHSDownloader();
+    XHSDownloaderInstance = new XHSDownloader();
 });
