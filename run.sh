@@ -13,6 +13,9 @@ if [ ! -d ".venv" ]; then
     uv venv .venv --python 3.12
 fi
 
+echo "Installing dependencies..."
+uv sync
+
 if [ "$1" = "WEB" ] || [ "$1" = "API" ] || [ -z "$1" ]; then
     PORT=5556
     echo "Checking port $PORT..."
