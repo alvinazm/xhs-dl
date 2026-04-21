@@ -18,10 +18,16 @@ if [ "$1" = "WEB" ] || [ "$1" = "API" ] || [ -z "$1" ]; then
     echo "Checking port $PORT..."
     lsof -ti :$PORT 2>/dev/null | xargs kill -9 2>/dev/null || true
     sleep 2
-    echo "Ready to start."
 fi
+
+LOG_DIR="$SCRIPT_DIR/logs"
+mkdir -p "$LOG_DIR"
+LOG_FILE="$LOG_DIR/app_$(date '+%Y%m%d_%H%M%S').log"
 
 echo "Activating virtual environment and starting XHS-Downloader..."
 source .venv/bin/activate
 
-python main.py "$@"
+echo "Starting in background, logs: $LOG_FILE"
+nohup python main.py "$@" > "$LOG_FILE" 2>&1 &
+echo "PID: $!" >> "$LOG_FILE"
+echo "Server started with PID: $!"
