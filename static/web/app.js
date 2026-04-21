@@ -222,25 +222,39 @@ class XHSDownloader {
     }
 
     async downloadFile(filePath, fileName) {
+        const btn = event.currentTarget;
+        btn.disabled = true;
+        btn.textContent = '下载中...';
         try {
-            const response = await fetch(`/xhs/files?path=${encodeURIComponent(filePath)}`);
+            const url = `/xhs/files?path=${encodeURIComponent(filePath)}`;
+            const response = await fetch(url);
+            const status = response.status;
+            const contentType = response.headers.get('content-type');
             if (!response.ok) {
-                this.showToast('下载失败', 'error');
+                const text = await response.text();
+                console.error('[Save Error]', status, text);
+                this.showToast(`保存失败(${status})`, 'error');
                 return;
             }
             const blob = await response.blob();
-            const url = URL.createObjectURL(blob);
+            const objectUrl = URL.createObjectURL(blob);
             const a = document.createElement('a');
-            a.href = url;
+            a.href = objectUrl;
             a.download = fileName;
+            a.style.display = 'none';
             document.body.appendChild(a);
             a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
+            setTimeout(() => {
+                document.body.removeChild(a);
+                URL.revokeObjectURL(objectUrl);
+            }, 100);
             this.showToast('保存成功', 'success');
         } catch (err) {
-            console.error('Download error:', err);
-            this.showToast('保存失败', 'error');
+            console.error('[Save Error]', err);
+            this.showToast('保存失败: ' + err.message, 'error');
+        } finally {
+            btn.disabled = false;
+            btn.textContent = '💾 保存';
         }
     }
 
