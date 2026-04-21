@@ -20,14 +20,11 @@ if [ "$1" = "WEB" ] || [ "$1" = "API" ] || [ -z "$1" ]; then
     sleep 2
 fi
 
-LOG_DIR="$SCRIPT_DIR/logs"
-mkdir -p "$LOG_DIR"
-LOG_FILE="$LOG_DIR/app_$(date '+%Y%m%d_%H%M%S').log"
-
 echo "Activating virtual environment and starting XHS-Downloader..."
 source .venv/bin/activate
 
-echo "Starting in background, logs: $LOG_FILE"
-nohup python main.py "$@" > "$LOG_FILE" 2>&1 &
-echo "PID: $!" >> "$LOG_FILE"
+mkdir -p "$SCRIPT_DIR/logs"
+
+echo "Starting in background, logs: logs/app.log"
+nohup python main.py "$@" > /dev/null 2>&1 &
 echo "Server started with PID: $!"

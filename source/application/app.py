@@ -776,11 +776,50 @@ class XHS:
             version=__VERSION__,
         )
         self.setup_routes(api)
+
+        log_dir = Path(__file__).resolve().parent.parent.parent.joinpath("logs")
+        log_dir.mkdir(exist_ok=True)
+        log_file = log_dir.joinpath("app.log")
+
+        log_config = {
+            "version": 1,
+            "disable_existing_loggers": False,
+            "formatters": {
+                "default": {
+                    "format": "%(asctime)s %(levelname)s: %(message)s",
+                    "datefmt": "%Y-%m-%d %H:%M:%S",
+                },
+            },
+            "handlers": {
+                "console": {
+                    "class": "logging.StreamHandler",
+                    "formatter": "default",
+                    "stream": "ext://sys.stderr",
+                },
+                "file": {
+                    "class": "logging.handlers.TimedRotatingFileHandler",
+                    "formatter": "default",
+                    "filename": str(log_file),
+                    "when": "midnight",
+                    "interval": 1,
+                    "backupCount": 30,
+                    "encoding": "utf-8",
+                },
+            },
+            "root": {"level": log_level.upper(), "handlers": ["console", "file"]},
+            "loggers": {
+                "uvicorn": {"level": log_level.upper(), "handlers": ["console", "file"], "propagate": False},
+                "uvicorn.error": {"level": log_level.upper(), "handlers": ["console", "file"], "propagate": False},
+                "uvicorn.access": {"level": log_level.upper(), "handlers": ["console", "file"], "propagate": False},
+            },
+        }
+
         config = Config(
             api,
             host=host,
             port=port,
-            log_level=log_level,
+            log_level="warning",
+            log_config=log_config,
         )
         server = Server(config)
         await server.serve()
