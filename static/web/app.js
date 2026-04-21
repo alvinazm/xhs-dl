@@ -163,21 +163,66 @@ class XHSDownloader {
         
         const title = data['作品标题'] || '无标题';
         const author = data['作者昵称'] || '未知作者';
+        const noteType = data['作品类型'] || '';
+        const localFiles = data['本地文件路径'] || [];
         const downloadUrls = data['下载地址'] || [];
 
-        let downloadLinks = '';
+        let localFilesHtml = '';
+        if (localFiles.length > 0) {
+            const fileItems = localFiles.map((filePath, i) => {
+                const fileName = filePath.split('/').pop();
+                const fileExt = fileName.split('.').pop().toLowerCase();
+                const isVideo = ['mp4', 'mov', 'avi', 'mkv'].includes(fileExt);
+                const icon = isVideo ? '🎬' : '🖼️';
+                return `<div class="file-item">
+                    <span class="file-icon">${icon}</span>
+                    <span class="file-name" title="${this.escapeHtml(fileName)}">${this.escapeHtml(fileName)}</span>
+                    <a href="/xhs/files?path=${encodeURIComponent(filePath)}" class="file-save-btn" download="${this.escapeHtml(fileName)}">💾 保存</a>
+                </div>`;
+            }).join('');
+            
+            const allFilesSaved = localFiles.length > 1
+                ? `<div class="file-actions">
+                    <button class="save-all-btn" onclick="window.location.href='/xhs/files?path=${encodeURIComponent(localFiles[0])}' + ''">⚠️ 批量保存请逐个点击上方按钮</button>
+                   </div>`
+                : '';
+            
+            localFilesHtml = `
+                <div class="local-files-section">
+                    <div class="section-label">📁 已保存到本地</div>
+                    <div class="file-list">${fileItems}</div>
+                    ${allFilesSaved}
+                </div>
+            `;
+        }
+
+        let sourceLinksHtml = '';
         if (Array.isArray(downloadUrls) && downloadUrls.length > 0) {
-            downloadLinks = downloadUrls.map((url, i) => 
-                `<a href="${url}" class="download-btn" target="_blank" download>文件 ${i + 1}</a>`
-            ).join(' ');
+            const urls = downloadUrls.filter(u => typeof u === 'string' && u.trim());
+            if (urls.length > 0) {
+                sourceLinksHtml = `
+                    <div class="source-links-section">
+                        <div class="section-label">🔗 原始下载地址</div>
+                        <div class="source-links">${urls.map((url, i) => 
+                            `<a href="${url}" class="source-link" target="_blank" download>文件 ${i + 1}</a>`
+                        ).join(' ')}</div>
+                    </div>
+                `;
+            }
         }
 
         resultItem.innerHTML = `
             <div class="item-info">
                 <div class="item-title">${this.escapeHtml(title)}</div>
-                <div class="item-author">作者: ${this.escapeHtml(author)}</div>
+                <div class="item-meta">
+                    <span class="item-author">作者: ${this.escapeHtml(author)}</span>
+                    ${noteType ? `<span class="item-type">${this.escapeHtml(noteType)}</span>` : ''}
+                </div>
             </div>
-            <div class="download-links">${downloadLinks}</div>
+            <div class="download-content">
+                ${localFilesHtml}
+                ${sourceLinksHtml}
+            </div>
         `;
 
         document.getElementById('resultList').appendChild(resultItem);

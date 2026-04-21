@@ -14,3 +14,4 @@ class ExtractData(BaseModel):
     message: str
     params: ExtractParams
     data: dict | None
+    model_config = {"extra": "allow"}

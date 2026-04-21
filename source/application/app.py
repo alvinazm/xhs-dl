@@ -237,7 +237,7 @@ class XHS:
                 self.logging(_("作品 {0} 存在下载记录，跳过下载").format(i))
                 count.skip += 1
             else:
-                __, result = await self.download.run(
+                folder_path, result = await self.download.run(
                     u,
                     container["动图地址"],
                     index,
@@ -249,6 +249,23 @@ class XHS:
                     container["时间戳"],
                     safe_title,
                 )
+                downloaded_files = []
+                if folder_path and result:
+                    self.logging(f"[DEBUG] folder_path={folder_path}, result={result}")
+                    try:
+                        for f in sorted(folder_path.iterdir()):
+                            if f.is_file() and (
+                                f.suffix.lower() in {'.mp4', '.mov', '.jpg', '.jpeg', '.png', '.webp', '.avif', '.heic', '.gif', '.m4a', '.mp3'}
+                            ):
+                                rel = str(f.relative_to(ROOT))
+                                self.logging(f"[DEBUG] found file: {rel}")
+                                downloaded_files.append(rel)
+                    except Exception as e:
+                        self.logging(f"[DEBUG] file scan error: {e}")
+                else:
+                    self.logging(f"[DEBUG] folder_path={folder_path}, result={result}")
+                container["本地文件路径"] = downloaded_files
+                self.logging(f"[DEBUG] container['本地文件路径'] = {downloaded_files}")
                 if not result:
                     count.skip += 1
                 elif all(result):
@@ -821,9 +838,31 @@ class XHS:
                     extract.proxy,
                 ):
                     msg = _("获取小红书作品数据成功")
+                    self.logging(f"[DEBUG] 本地文件: {data.get('本地文件路径', [])}")
                 else:
                     msg = _("获取小红书作品数据失败")
             return ExtractData(message=msg, params=extract, data=data)
+
+        @server.get(
+            "/xhs/files",
+            summary=_("下载本地文件"),
+            description=_("通过相对路径下载已保存的本地文件"),
+            tags=["API"],
+        )
+        async def download_local_file(path: str):
+            safe_path = Path(path).resolve()
+            volume_dir = static_dir.parent.joinpath("Volume").resolve()
+            if not str(safe_path).startswith(str(volume_dir)):
+                from fastapi.responses import JSONResponse
+                return JSONResponse(status_code=403, content={"detail": "Forbidden"})
+            if not safe_path.exists() or not safe_path.is_file():
+                from fastapi.responses import JSONResponse
+                return JSONResponse(status_code=404, content={"detail": "File not found"})
+            return FileResponse(
+                path=str(safe_path),
+                filename=safe_path.name,
+                media_type="application/octet-stream",
+            )
 
     async def run_mcp_server(
         self,
